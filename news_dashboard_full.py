@@ -29,12 +29,11 @@ auto_refresh = st.sidebar.checkbox("Auto refresh", False)
 refresh_interval = st.sidebar.slider("Refresh interval (sec)", 30, 300, 60)
 min_cluster_size = st.sidebar.slider("Minimum cluster size", 1, 5, 1)
 
-# Safe manual refresh callback
-def refresh_app():
-    st.experimental_rerun()
-
+# -----------------------------
+# Safe manual refresh
+# -----------------------------
 if st.sidebar.button("Manual refresh"):
-    refresh_app()
+    st.experimental_rerun()  # call directly, not via another function
 
 # -----------------------------
 # App header
@@ -77,15 +76,12 @@ def translate(text):
 # -----------------------------
 article_texts = [a["title"] + " " + a["summary"] for a in articles]
 
-# Compute TF-IDF vectors
 vectorizer = TfidfVectorizer(stop_words='english')
 tfidf_matrix = vectorizer.fit_transform(article_texts)
 
-# DBSCAN clustering
 db = DBSCAN(metric='cosine', eps=0.3, min_samples=2)
 labels = db.fit_predict(tfidf_matrix)
 
-# Group articles by cluster
 clusters = {}
 for label, article in zip(labels, articles):
     clusters.setdefault(label, []).append(article)
@@ -94,7 +90,6 @@ for label, article in zip(labels, articles):
 # Display clusters
 # -----------------------------
 for cluster_id, cluster_articles in clusters.items():
-    # Skip noise points labeled -1
     if cluster_id == -1 or len(cluster_articles) < min_cluster_size:
         continue
     st.subheader(f"Cluster #{cluster_id} - {len(cluster_articles)} sources reporting")
