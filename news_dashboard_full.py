@@ -1,5 +1,5 @@
 import streamlit as st
-import feedparser
+import requests
 from datetime import datetime
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.cluster import DBSCAN
@@ -24,9 +24,6 @@ refresh_interval = st.sidebar.slider("Refresh interval (sec)", 30, 300, 60)
 min_cluster_size = st.sidebar.slider("Minimum cluster size", 1, 5, 1)
 translate_toggle = st.sidebar.checkbox("Enable translation (API)", False)
 
-# -----------------------------
-# Manual refresh
-# -----------------------------
 if st.sidebar.button("Manual refresh"):
     st.session_state.refresh_trigger += 1
     st.session_state.last_refresh = time.time()
@@ -42,7 +39,7 @@ if auto_refresh:
         st.experimental_rerun()
 
 # -----------------------------
-# Define all news outlets
+# News outlets
 # -----------------------------
 outlets = [
     {"name": "Associated Press (AP)", "rss": "https://apnews.com/rss", "bias": "center", "reliability": "high"},
@@ -95,6 +92,18 @@ st.caption(f"Last updated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 search_query = st.text_input("🔍 Search all articles by topic or keyword:")
 
 # -----------------------------
+# RSS-to-JSON fetch function
+# -----------------------------
+def fetch_rss_json(url):
+    try:
+        api_url = f"https://api.rss2json.com/v1/api.json?rss_url={url}"
+        resp = requests.get(api_url, timeout=5)
+        data = resp.json()
+        return data.get("items", [])
+    except:
+        return []
+
+# -----------------------------
 # Fetch articles safely
 # -----------------------------
 articles = []
@@ -102,21 +111,16 @@ with st.spinner("Fetching latest articles..."):
     for outlet in outlets:
         if outlet["name"] not in selected_outlets:
             continue
-        try:
-            feed = feedparser.parse(outlet["rss"])
-            if not feed.entries:
-                continue
-            for entry in feed.entries[:3]:
-                articles.append({
-                    "title": entry.title,
-                    "summary": entry.get("summary", ""),
-                    "link": entry.link,
-                    "source": outlet["name"],
-                    "bias": outlet.get("bias", "N/A"),
-                    "reliability": outlet.get("reliability", "N/A")
-                })
-        except Exception as e:
-            st.warning(f"Failed to fetch feed from {outlet['name']}: {e}")
+        items = fetch_rss_json(outlet["rss"])
+        for entry in items[:3]:
+            articles.append({
+                "title": entry.get("title", ""),
+                "summary": entry.get("description", ""),
+                "link": entry.get("link", "#"),
+                "source": outlet["name"],
+                "bias": outlet.get("bias", "N/A"),
+                "reliability": outlet.get("reliability", "N/A")
+            })
 
 if not articles:
     st.warning("No articles found for selected outlets.")
