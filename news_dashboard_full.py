@@ -3,8 +3,7 @@ import feedparser
 import json
 from datetime import datetime
 from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
-from sklearn.cluster import AgglomerativeClustering
+from sklearn.cluster import DBSCAN
 import numpy as np
 
 st.set_page_config(page_title="Global News Intelligence Dashboard", layout="wide")
@@ -70,22 +69,17 @@ def translate(text):
     return text
 
 # -----------------------------
-# TF-IDF + Cosine Similarity Clustering
+# TF-IDF + DBSCAN Clustering
 # -----------------------------
 article_texts = [a["title"] + " " + a["summary"] for a in articles]
 
+# Compute TF-IDF vectors
 vectorizer = TfidfVectorizer(stop_words='english')
 tfidf_matrix = vectorizer.fit_transform(article_texts)
-similarity_matrix = cosine_similarity(tfidf_matrix)
-distance_matrix = 1 - similarity_matrix
 
-clustering = AgglomerativeClustering(
-    n_clusters=None,
-    affinity='precomputed',
-    linkage='average',
-    distance_threshold=0.7  # adjust for granularity
-)
-labels = clustering.fit_predict(distance_matrix)
+# DBSCAN clustering
+db = DBSCAN(metric='cosine', eps=0.3, min_samples=2)
+labels = db.fit_predict(tfidf_matrix)
 
 # Group articles by cluster
 clusters = {}
@@ -96,7 +90,8 @@ for label, article in zip(labels, articles):
 # Display clusters
 # -----------------------------
 for cluster_id, cluster_articles in clusters.items():
-    if len(cluster_articles) < min_cluster_size:
+    # Skip noise points labeled -1
+    if cluster_id == -1 or len(cluster_articles) < min_cluster_size:
         continue
     st.subheader(f"Cluster #{cluster_id} - {len(cluster_articles)} sources reporting")
     for article in cluster_articles:
