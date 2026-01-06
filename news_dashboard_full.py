@@ -74,24 +74,45 @@ def translate(text):
 # -----------------------------
 article_texts = [a["title"] + " " + a["summary"] for a in articles]
 
-# Compute TF-IDF vectors
 vectorizer = TfidfVectorizer(stop_words='english')
 tfidf_matrix = vectorizer.fit_transform(article_texts)
-
-# Compute cosine similarity
 similarity_matrix = cosine_similarity(tfidf_matrix)
-
-# Agglomerative clustering using cosine similarity
-# Convert similarity to distance
 distance_matrix = 1 - similarity_matrix
+
 clustering = AgglomerativeClustering(
     n_clusters=None,
     affinity='precomputed',
     linkage='average',
-    distance_threshold=0.7  # adjust threshold for cluster granularity
+    distance_threshold=0.7  # adjust for granularity
 )
 labels = clustering.fit_predict(distance_matrix)
 
 # Group articles by cluster
 clusters = {}
-for label, article in zip(labels, articl
+for label, article in zip(labels, articles):
+    clusters.setdefault(label, []).append(article)
+
+# -----------------------------
+# Display clusters
+# -----------------------------
+for cluster_id, cluster_articles in clusters.items():
+    if len(cluster_articles) < min_cluster_size:
+        continue
+    st.subheader(f"Cluster #{cluster_id} - {len(cluster_articles)} sources reporting")
+    for article in cluster_articles:
+        title = translate(article["title"])
+        st.markdown(f"[{title}]({article['link']}) - {article['source']}")
+        st.caption(f"Bias: {article['bias']} | Reliability: {article['reliability']} | Score: 0.8")
+        with st.expander("Summary / Fact Check / Cross-Source Info"):
+            summary_text = translate(article["summary"])
+            st.write(summary_text)
+            st.write("Fact check: AI analysis pending")
+            st.write("Cross-source cluster info: placeholder")
+
+# -----------------------------
+# Monetization placeholders
+# -----------------------------
+st.sidebar.header("Subscription Tiers (Placeholder)")
+st.sidebar.write("Free: Limited headlines")
+st.sidebar.write("Pro: Full access + translation + clustering")
+st.sidebar.write("Enterprise: Custom feeds + API access")
