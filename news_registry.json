@@ -1,0 +1,92 @@
+[
+  {
+    "name": "BBC World",
+    "country": "UK",
+    "language": "EN",
+    "category": "General",
+    "rss": "http://feeds.bbci.co.uk/news/world/rss.xml",
+    "bias": "Center",
+    "reliability": "High"
+  },
+  {
+    "name": "CNN",
+    "country": "US",
+    "language": "EN",
+    "category": "General",
+    "rss": "http://rss.cnn.com/rss/cnn_topstories.rss",
+    "bias": "Center-left",
+    "reliability": "High"
+  },
+  {
+    "name": "Bloomberg",
+    "country": "US",
+    "language": "EN",
+    "category": "Business",
+    "rss": "https://www.bloomberg.com/feed/podcast",
+    "bias": "Center",
+    "reliability": "High"
+  },
+  {
+    "name": "Sky News",
+    "country": "UK",
+    "language": "EN",
+    "category": "General",
+    "rss": "https://feeds.skynews.com/feeds/rss/home.xml",
+    "bias": "Center-right",
+    "reliability": "High"
+  },
+  {
+    "name": "The Independent",
+    "country": "UK",
+    "language": "EN",
+    "category": "General",
+    "rss": "https://www.independent.co.uk/rss",
+    "bias": "Center-left",
+    "reliability": "High"
+  },
+  {
+    "name": "Die Zeit",
+    "country": "DE",
+    "language": "DE",
+    "category": "General",
+    "rss": "https://www.zeit.de/index?format=rss",
+    "bias": "Center-left",
+    "reliability": "High"
+  },
+  {
+    "name": "El País",
+    "country": "ES",
+    "language": "ES",
+    "category": "General",
+    "rss": "https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/portada",
+    "bias": "Center-left",
+    "reliability": "High"
+  },
+  {
+    "name": "Xinhua",
+    "country": "CN",
+    "language": "ZH",
+    "category": "General",
+    "rss": "http://www.xinhuanet.com/english/rss.xml",
+    "bias": "State",
+    "reliability": "Medium"
+  },
+  {
+    "name": "ABC Australia",
+    "country": "AU",
+    "language": "EN",
+    "category": "General",
+    "rss": "https://www.abc.net.au/news/feed/51120/rss.xml",
+    "bias": "Center",
+    "reliability": "High"
+  },
+  {
+    "name": "TechCrunch",
+    "country": "US",
+    "language": "EN",
+    "category": "Tech",
+    "rss": "http://feeds.feedburner.com/TechCrunch/",
+    "bias": "Center-left",
+    "reliability": "High"
+  }
+]
