@@ -39,7 +39,61 @@ if auto_refresh:
         st.experimental_rerun()
 
 # -----------------------------
-# News outlets
+# Inject FT + Guardian hybrid CSS
+# -----------------------------
+st.markdown("""
+<style>
+/* Fonts */
+body, .stApp {
+    font-family: 'Arial', 'Helvetica', sans-serif;
+    background-color: #FAF6F0;
+    color: #1A1A1A;
+}
+
+/* Headline links */
+a {
+    color: #052962;  /* Guardian blue */
+    text-decoration: none;
+    font-family: 'Georgia', 'Times New Roman', serif; /* FT headlines */
+    font-size: 1.05rem;
+}
+a:hover {
+    text-decoration: underline;
+}
+
+/* Sidebar */
+[data-testid="stSidebar"] {
+    background-color: #FFF9F0;
+    padding-top: 2rem;
+}
+
+/* Cluster cards */
+.cluster-card {
+    background-color: #FFFFFF;
+    padding: 1rem 1.2rem;
+    margin-bottom: 1rem;
+    border-left: 4px solid #F3C04D; /* FT accent */
+    border-radius: 4px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+}
+
+/* Metadata captions */
+.caption {
+    font-size: 0.85rem;
+    color: #555555;
+    margin-top: 0.2rem;
+}
+
+/* Expander styling */
+div[role="button"] {
+    font-weight: 600;
+    color: #052962;
+}
+</style>
+""", unsafe_allow_html=True)
+
+# -----------------------------
+# Define all news outlets
 # -----------------------------
 outlets = [
     {"name": "Associated Press (AP)", "rss": "https://apnews.com/rss", "bias": "center", "reliability": "high"},
@@ -169,16 +223,17 @@ for label, article in zip(labels, filtered_articles):
 for cluster_id, cluster_articles in clusters.items():
     if cluster_id == -1 or len(cluster_articles) < min_cluster_size:
         continue
-    st.subheader(f"Cluster #{cluster_id} - {len(cluster_articles)} sources reporting")
+    st.markdown(f"<div class='cluster-card'><h3>Cluster #{cluster_id} - {len(cluster_articles)} sources reporting</h3>", unsafe_allow_html=True)
     for article in cluster_articles:
         title = translate(article["title"])
-        st.markdown(f"[{title}]({article['link']}) - {article['source']}")
-        st.caption(f"Bias: {article['bias']} | Reliability: {article['reliability']} | Score: 0.8")
+        st.markdown(f"<a href='{article['link']}' target='_blank'>{title}</a>", unsafe_allow_html=True)
+        st.markdown(f"<div class='caption'>Bias: {article['bias']} | Reliability: {article['reliability']} | Score: 0.8</div>", unsafe_allow_html=True)
         with st.expander("Summary / Fact Check / Cross-Source Info"):
             summary_text = translate(article["summary"])
             st.write(summary_text)
             st.write("Fact check: AI analysis pending")
             st.write("Cross-source cluster info: placeholder")
+    st.markdown("</div>", unsafe_allow_html=True)
 
 # -----------------------------
 # Monetization placeholders
