@@ -7,6 +7,47 @@ from sklearn.cluster import DBSCAN
 st.set_page_config(page_title="Global News Intelligence Dashboard", layout="wide")
 
 # -----------------------------
+# Inject FT + Guardian hybrid CSS
+# -----------------------------
+st.markdown("""
+<style>
+body, .stApp {
+    font-family: 'Arial', 'Helvetica', sans-serif;
+    background-color: #FAF6F0;
+    color: #1A1A1A;
+}
+a {
+    color: #052962;
+    text-decoration: none;
+    font-family: 'Georgia', 'Times New Roman', serif;
+    font-size: 1.05rem;
+}
+a:hover { text-decoration: underline; }
+[data-testid="stSidebar"] { 
+    background-color: #FFF9F0; 
+    padding-top: 2rem; 
+}
+div[role="button"] { 
+    font-weight: 600; 
+    color: #052962; 
+}
+.caption { 
+    font-size: 0.85rem; 
+    color: #555555; 
+    margin-top: 0.2rem; 
+}
+.cluster-card {
+    background-color: #FFFFFF;
+    padding: 1rem 1.2rem;
+    margin-bottom: 1rem;
+    border-left: 4px solid #F3C04D;
+    border-radius: 4px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+}
+</style>
+""", unsafe_allow_html=True)
+
+# -----------------------------
 # Sidebar controls
 # -----------------------------
 st.sidebar.header("Dashboard Controls")
@@ -113,10 +154,7 @@ def cluster_articles(texts):
     return db.fit_predict(tfidf_matrix)
 
 article_texts = [a["title"] + " " + a["summary"] for a in filtered_articles]
-if article_texts:
-    labels = cluster_articles(article_texts)
-else:
-    labels = []
+labels = cluster_articles(article_texts) if article_texts else []
 
 # -----------------------------
 # Group articles by cluster
@@ -138,7 +176,7 @@ else:
             for article in cluster_articles:
                 title = translate(article["title"])
                 st.markdown(f"[{title}]({article['link']}) - {article['source']}")
-                st.caption(f"Bias: {article['bias']} | Reliability: {article['reliability']} | Score: 0.8")
+                st.markdown(f"<div class='caption'>Bias: {article['bias']} | Reliability: {article['reliability']} | Score: 0.8</div>", unsafe_allow_html=True)
                 with st.expander("Summary / Fact Check / Cross-Source Info"):
                     summary_text = translate(article["summary"])
                     st.write(summary_text)
