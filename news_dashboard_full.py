@@ -1,47 +1,113 @@
 import streamlit as st
-import json
 import feedparser
+import json
 from datetime import datetime
+from sentence_transformers import SentenceTransformer
+from sklearn.cluster import AgglomerativeClustering
+import numpy as np
+
+st.set_page_config(page_title="Global News Intelligence Dashboard", layout="wide")
 
 # -----------------------------
-# Load registry
+# Load news registry
 # -----------------------------
 with open("news_registry.json", "r", encoding="utf-8") as f:
     outlets = json.load(f)
 
-st.set_page_config(page_title="Global News Intelligence", layout="wide")
-
+# -----------------------------
 # Sidebar controls
+# -----------------------------
 st.sidebar.header("Controls")
 selected_outlets = st.sidebar.multiselect(
-    "Select outlets",
+    "Select news outlets",
     [o["name"] for o in outlets],
     default=[o["name"] for o in outlets[:5]]
 )
 
-# Manual refresh button
-if st.sidebar.button("Refresh News"):
+translate_toggle = st.sidebar.checkbox("Enable translation (API)", False)
+auto_refresh = st.sidebar.checkbox("Auto refresh", False)
+refresh_interval = st.sidebar.slider("Refresh interval (sec)", 30, 300, 60)
+min_cluster_size = st.sidebar.slider("Minimum cluster size", 1, 5, 1)
+
+if st.sidebar.button("Manual refresh"):
     st.experimental_rerun()
 
+# -----------------------------
 # App header
+# -----------------------------
 st.title("🌍 Global News Intelligence Dashboard")
 st.caption(f"Last updated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
-# Render news
+# -----------------------------
+# Collect all articles
+# -----------------------------
+articles = []
 for outlet in outlets:
     if outlet["name"] not in selected_outlets:
         continue
-
-    st.subheader(outlet["name"])
     feed = feedparser.parse(outlet["rss"])
-
     for entry in feed.entries[:3]:
-        st.markdown(f"### [{entry.title}]({entry.link})")
-        st.caption(f"Bias: {outlet.get('bias', 'N/A')} | Reliability: {outlet.get('reliability', 'N/A')}")
+        articles.append({
+            "title": entry.title,
+            "summary": entry.get("summary", ""),
+            "link": entry.link,
+            "source": outlet["name"],
+            "bias": outlet.get("bias", "N/A"),
+            "reliability": outlet.get("reliability", "N/A")
+        })
 
-        with st.expander("Summary · Fact check · Opposing views"):
-            st.write(entry.get("summary", "No summary available"))
-            st.write("Fact check: automated analysis pending")
-            st.write("Opposing viewpoints: cross-source comparison pending")
+if not articles:
+    st.warning("No articles found for selected outlets.")
+    st.stop()
 
-    st.divider()
+# -----------------------------
+# Translation placeholder
+# -----------------------------
+def translate(text):
+    if translate_toggle:
+        return f"[Translated] {text}"  # placeholder for API call
+    return text
+
+# -----------------------------
+# Compute embeddings & clustering
+# -----------------------------
+@st.cache_data(show_spinner=False)
+def compute_clusters(texts):
+    model = SentenceTransformer('all-MiniLM-L6-v2')
+    embeddings = model.encode(texts)
+    clustering = AgglomerativeClustering(n_clusters=None, distance_threshold=1.0)
+    labels = clustering.fit_predict(embeddings)
+    return labels
+
+article_texts = [a["title"] + " " + a["summary"] for a in articles]
+labels = compute_clusters(article_texts)
+
+# Group articles by cluster
+clusters = {}
+for label, article in zip(labels, articles):
+    clusters.setdefault(label, []).append(article)
+
+# -----------------------------
+# Display clusters
+# -----------------------------
+for cluster_id, cluster_articles in clusters.items():
+    if len(cluster_articles) < min_cluster_size:
+        continue
+    st.subheader(f"Cluster #{cluster_id} - {len(cluster_articles)} sources reporting")
+    for article in cluster_articles:
+        title = translate(article["title"])
+        st.markdown(f"[{title}]({article['link']}) - {article['source']}")
+        st.caption(f"Bias: {article['bias']} | Reliability: {article['reliability']} | Score: 0.8")
+        with st.expander("Summary / Fact Check / Cross-Source Info"):
+            summary_text = translate(article["summary"])
+            st.write(summary_text)
+            st.write("Fact check: AI analysis pending")
+            st.write("Cross-source cluster info: placeholder")
+
+# -----------------------------
+# Monetization placeholders
+# -----------------------------
+st.sidebar.header("Subscription Tiers (Placeholder)")
+st.sidebar.write("Free: Limited headlines")
+st.sidebar.write("Pro: Full access + translation + clustering")
+st.sidebar.write("Enterprise: Custom feeds + API access")
