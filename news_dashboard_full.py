@@ -1,11 +1,11 @@
 import streamlit as st
-import requests
+import feedparser
 from datetime import datetime
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.cluster import DBSCAN
 
 # -----------------------------
-# Streamlit config
+# Streamlit page config
 # -----------------------------
 st.set_page_config(page_title="Global News Intelligence Dashboard", layout="wide")
 
@@ -71,7 +71,7 @@ articles_per_outlet = st.sidebar.slider("Articles per outlet", 1, 5, 3)
 # News outlets registry
 # -----------------------------
 outlets = [
-    {"name": "AP", "rss": "https://apnews.com/rss", "bias":"center", "reliability":"high"},
+    {"name": "AP", "rss": "https://apnews.com/apf-topnews.rss", "bias":"center", "reliability":"high"},
     {"name": "Reuters", "rss": "http://feeds.reuters.com/reuters/topNews", "bias":"center", "reliability":"high"},
     {"name": "BBC News", "rss": "http://feeds.bbci.co.uk/news/rss.xml", "bias":"center", "reliability":"high"},
     {"name": "CNN", "rss": "http://rss.cnn.com/rss/edition.rss", "bias":"left", "reliability":"high"},
@@ -99,16 +99,15 @@ search_query = st.text_input("🔍 Search all articles by topic or keyword:")
 # -----------------------------
 # RSS fetch function
 # -----------------------------
-def fetch_rss(url):
+def fetch_rss_direct(url):
     try:
-        api_url = f"https://api.rss2json.com/v1/api.json?rss_url={url}"
-        resp = requests.get(api_url, timeout=5)
-        return resp.json().get("items", [])
+        feed = feedparser.parse(url)
+        return feed.entries
     except:
         return []
 
 # -----------------------------
-# Load articles on button click
+# Load articles
 # -----------------------------
 articles = []
 
@@ -118,16 +117,23 @@ if selected_outlets:
             for outlet in outlets:
                 if outlet["name"] not in selected_outlets:
                     continue
-                items = fetch_rss(outlet["rss"])
-                for entry in items[:articles_per_outlet]:
+                entries = fetch_rss_direct(outlet["rss"])
+                for entry in entries[:articles_per_outlet]:
                     articles.append({
                         "title": entry.get("title",""),
-                        "summary": entry.get("description",""),
+                        "summary": entry.get("summary",""),
                         "link": entry.get("link","#"),
                         "source": outlet["name"],
                         "bias": outlet.get("bias","N/A"),
                         "reliability": outlet.get("reliability","N/A")
                     })
+
+# -----------------------------
+# Handle empty state
+# -----------------------------
+if not articles:
+    st.info("Select outlets and click 'Load Articles' to fetch news.")
+    st.stop()
 
 # -----------------------------
 # Filter by search query
@@ -137,7 +143,7 @@ if search_query:
         a for a in articles
         if search_query.lower() in a["title"].lower() or search_query.lower() in a["summary"].lower()
     ]
-    if not filtered_articles and articles:
+    if not filtered_articles:
         st.warning(f"No articles found for '{search_query}'")
         st.stop()
 else:
@@ -173,25 +179,19 @@ for label, article in zip(labels, filtered_articles):
 # -----------------------------
 # Display clusters
 # -----------------------------
-if not clusters:
-    if selected_outlets:
-        st.info("No clusters to display. Try selecting different outlets or keywords.")
-    else:
-        st.info("Select outlets and click 'Load Articles' to fetch news.")
-else:
-    for cluster_id, cluster_articles in clusters.items():
-        if cluster_id == -1 or len(cluster_articles) < min_cluster_size:
-            continue
-        with st.expander(f"Cluster #{cluster_id} - {len(cluster_articles)} sources reporting"):
-            for article in cluster_articles:
-                title = translate(article["title"])
-                st.markdown(f"[{title}]({article['link']}) - {article['source']}")
-                st.markdown(f"<div class='caption'>Bias: {article['bias']} | Reliability: {article['reliability']} | Score: 0.8</div>", unsafe_allow_html=True)
-                with st.expander("Summary / Fact Check / Cross-Source Info"):
-                    summary_text = translate(article["summary"])
-                    st.write(summary_text)
-                    st.write("Fact check: AI analysis pending")
-                    st.write("Cross-source cluster info: placeholder")
+for cluster_id, cluster_articles in clusters.items():
+    if cluster_id == -1 or len(cluster_articles) < min_cluster_size:
+        continue
+    with st.expander(f"Cluster #{cluster_id} - {len(cluster_articles)} sources reporting"):
+        for article in cluster_articles:
+            title = translate(article["title"])
+            st.markdown(f"[{title}]({article['link']}) - {article['source']}")
+            st.markdown(f"<div class='caption'>Bias: {article['bias']} | Reliability: {article['reliability']} | Score: 0.8</div>", unsafe_allow_html=True)
+            with st.expander("Summary / Fact Check / Cross-Source Info"):
+                summary_text = translate(article["summary"])
+                st.write(summary_text)
+                st.write("Fact check: AI analysis pending")
+                st.write("Cross-source cluster info: placeholder")
 
 # -----------------------------
 # Monetization placeholders
