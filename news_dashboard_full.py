@@ -59,7 +59,7 @@ outlets = [
     {"name": "BBC News", "rss": "http://feeds.bbci.co.uk/news/rss.xml", "bias":"center", "reliability":"high"},
     {"name": "CNN", "rss": "http://rss.cnn.com/rss/edition.rss", "bias":"left", "reliability":"high"},
     {"name": "Al Jazeera", "rss": "https://www.aljazeera.com/xml/rss/all.xml", "bias":"center-left", "reliability":"high"},
-    # Add more outlets here
+    # Add more outlets as needed
 ]
 
 # -----------------------------
@@ -72,7 +72,7 @@ selected_outlets = st.sidebar.multiselect(
 )
 
 # -----------------------------
-# App header & search bar
+# App header & search
 # -----------------------------
 st.title("🌍 Global News Intelligence Dashboard")
 st.caption(f"Last updated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
