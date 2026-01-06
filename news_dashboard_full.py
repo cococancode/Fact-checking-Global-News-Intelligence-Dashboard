@@ -9,6 +9,15 @@ import numpy as np
 st.set_page_config(page_title="Global News Intelligence Dashboard", layout="wide")
 
 # -----------------------------
+# Session state for safe refresh
+# -----------------------------
+if "refresh_trigger" not in st.session_state:
+    st.session_state.refresh_trigger = 0
+
+if st.sidebar.button("Manual refresh"):
+    st.session_state.refresh_trigger += 1  # Increment triggers a soft refresh
+
+# -----------------------------
 # Load news registry
 # -----------------------------
 with open("news_registry.json", "r", encoding="utf-8") as f:
@@ -28,12 +37,6 @@ translate_toggle = st.sidebar.checkbox("Enable translation (API)", False)
 auto_refresh = st.sidebar.checkbox("Auto refresh", False)
 refresh_interval = st.sidebar.slider("Refresh interval (sec)", 30, 300, 60)
 min_cluster_size = st.sidebar.slider("Minimum cluster size", 1, 5, 1)
-
-# -----------------------------
-# Safe manual refresh
-# -----------------------------
-if st.sidebar.button("Manual refresh"):
-    st.experimental_rerun()  # call directly, not via another function
 
 # -----------------------------
 # App header
@@ -76,12 +79,15 @@ def translate(text):
 # -----------------------------
 article_texts = [a["title"] + " " + a["summary"] for a in articles]
 
+# TF-IDF vectors
 vectorizer = TfidfVectorizer(stop_words='english')
 tfidf_matrix = vectorizer.fit_transform(article_texts)
 
+# DBSCAN clustering
 db = DBSCAN(metric='cosine', eps=0.3, min_samples=2)
 labels = db.fit_predict(tfidf_matrix)
 
+# Group articles by cluster
 clusters = {}
 for label, article in zip(labels, articles):
     clusters.setdefault(label, []).append(article)
@@ -110,3 +116,10 @@ st.sidebar.header("Subscription Tiers (Placeholder)")
 st.sidebar.write("Free: Limited headlines")
 st.sidebar.write("Pro: Full access + translation + clustering")
 st.sidebar.write("Enterprise: Custom feeds + API access")
+
+# -----------------------------
+# Auto refresh logic (optional)
+# -----------------------------
+if auto_refresh:
+    st.experimental_set_query_params(refresh=st.session_state.refresh_trigger)
+    st.experimental_rerun()
