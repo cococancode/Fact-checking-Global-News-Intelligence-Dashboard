@@ -10,34 +10,51 @@ from sklearn.cluster import DBSCAN
 st.set_page_config(page_title="Global News Intelligence Dashboard", layout="wide")
 
 # -----------------------------
-# CSS FT + Guardian hybrid
+# Dark Mode CSS
 # -----------------------------
 st.markdown("""
 <style>
 body, .stApp {
+    background-color: #000000;  /* black background */
+    color: #FFFFFF;             /* white text */
     font-family: 'Arial', 'Helvetica', sans-serif;
-    background-color: #FAF6F0;
-    color: #1A1A1A;
 }
+
 a {
-    color: #052962;
+    color: #1E90FF;  /* bright blue links */
     text-decoration: none;
     font-family: 'Georgia', 'Times New Roman', serif;
     font-size: 1.05rem;
 }
 a:hover { text-decoration: underline; }
+
 [data-testid="stSidebar"] { 
-    background-color: #FFF9F0; 
+    background-color: #111111; /* dark gray sidebar */
+    color: #FFFFFF;
     padding-top: 2rem; 
 }
+
 div[role="button"] { 
     font-weight: 600; 
-    color: #052962; 
+    color: #1E90FF;  /* bright blue buttons */
 }
+
 .caption { 
     font-size: 0.85rem; 
-    color: #555555; 
+    color: #AAAAAA;  /* light gray captions */
     margin-top: 0.2rem; 
+}
+
+.stTextInput>div>div>input {
+    color: #FFFFFF; 
+    background-color: #222222;  /* dark input fields */
+    border: 1px solid #444444;
+}
+
+.stButton>button {
+    background-color: #1E90FF;
+    color: #FFFFFF;
+    border: none;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -72,7 +89,7 @@ selected_outlets = st.sidebar.multiselect(
 )
 
 # -----------------------------
-# App header & search
+# App header & search bar
 # -----------------------------
 st.title("🌍 Global News Intelligence Dashboard")
 st.caption(f"Last updated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
@@ -80,7 +97,7 @@ st.caption(f"Last updated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 search_query = st.text_input("🔍 Search all articles by topic or keyword:")
 
 # -----------------------------
-# RSS fetch function (safe)
+# RSS fetch function
 # -----------------------------
 def fetch_rss(url):
     try:
