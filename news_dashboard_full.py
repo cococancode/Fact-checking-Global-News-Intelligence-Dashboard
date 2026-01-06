@@ -2,7 +2,8 @@ import streamlit as st
 import feedparser
 import json
 from datetime import datetime
-from sentence_transformers import SentenceTransformer
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.cluster import AgglomerativeClustering
 import numpy as np
 
@@ -69,45 +70,28 @@ def translate(text):
     return text
 
 # -----------------------------
-# Compute embeddings & clustering
+# TF-IDF + Cosine Similarity Clustering
 # -----------------------------
-@st.cache_data(show_spinner=False)
-def compute_clusters(texts):
-    model = SentenceTransformer('all-MiniLM-L6-v2')
-    embeddings = model.encode(texts)
-    clustering = AgglomerativeClustering(n_clusters=None, distance_threshold=1.0)
-    labels = clustering.fit_predict(embeddings)
-    return labels
-
 article_texts = [a["title"] + " " + a["summary"] for a in articles]
-labels = compute_clusters(article_texts)
+
+# Compute TF-IDF vectors
+vectorizer = TfidfVectorizer(stop_words='english')
+tfidf_matrix = vectorizer.fit_transform(article_texts)
+
+# Compute cosine similarity
+similarity_matrix = cosine_similarity(tfidf_matrix)
+
+# Agglomerative clustering using cosine similarity
+# Convert similarity to distance
+distance_matrix = 1 - similarity_matrix
+clustering = AgglomerativeClustering(
+    n_clusters=None,
+    affinity='precomputed',
+    linkage='average',
+    distance_threshold=0.7  # adjust threshold for cluster granularity
+)
+labels = clustering.fit_predict(distance_matrix)
 
 # Group articles by cluster
 clusters = {}
-for label, article in zip(labels, articles):
-    clusters.setdefault(label, []).append(article)
-
-# -----------------------------
-# Display clusters
-# -----------------------------
-for cluster_id, cluster_articles in clusters.items():
-    if len(cluster_articles) < min_cluster_size:
-        continue
-    st.subheader(f"Cluster #{cluster_id} - {len(cluster_articles)} sources reporting")
-    for article in cluster_articles:
-        title = translate(article["title"])
-        st.markdown(f"[{title}]({article['link']}) - {article['source']}")
-        st.caption(f"Bias: {article['bias']} | Reliability: {article['reliability']} | Score: 0.8")
-        with st.expander("Summary / Fact Check / Cross-Source Info"):
-            summary_text = translate(article["summary"])
-            st.write(summary_text)
-            st.write("Fact check: AI analysis pending")
-            st.write("Cross-source cluster info: placeholder")
-
-# -----------------------------
-# Monetization placeholders
-# -----------------------------
-st.sidebar.header("Subscription Tiers (Placeholder)")
-st.sidebar.write("Free: Limited headlines")
-st.sidebar.write("Pro: Full access + translation + clustering")
-st.sidebar.write("Enterprise: Custom feeds + API access")
+for label, article in zip(labels, articl
