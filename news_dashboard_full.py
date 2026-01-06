@@ -32,7 +32,7 @@ if st.sidebar.button("Manual refresh"):
     st.session_state.last_refresh = time.time()
 
 # -----------------------------
-# Auto-refresh logic
+# Safe auto-refresh
 # -----------------------------
 if auto_refresh:
     if time.time() - st.session_state.last_refresh > refresh_interval:
@@ -74,7 +74,7 @@ outlets = [
 ]
 
 # -----------------------------
-# Outlet selection
+# Sidebar outlet selection
 # -----------------------------
 st.sidebar.header("Select news outlets")
 selected_outlets = st.sidebar.multiselect(
@@ -104,6 +104,8 @@ with st.spinner("Fetching latest articles..."):
             continue
         try:
             feed = feedparser.parse(outlet["rss"])
+            if not feed.entries:
+                continue
             for entry in feed.entries[:3]:
                 articles.append({
                     "title": entry.title,
@@ -121,7 +123,7 @@ if not articles:
     st.stop()
 
 # -----------------------------
-# Filter by search query
+# Apply search filter
 # -----------------------------
 if search_query:
     filtered_articles = [
