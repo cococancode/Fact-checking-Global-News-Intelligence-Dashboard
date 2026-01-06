@@ -7,7 +7,7 @@ from sklearn.cluster import DBSCAN
 st.set_page_config(page_title="Global News Intelligence Dashboard", layout="wide")
 
 # -----------------------------
-# Inject FT + Guardian hybrid CSS
+# CSS FT + Guardian hybrid
 # -----------------------------
 st.markdown("""
 <style>
@@ -36,14 +36,6 @@ div[role="button"] {
     color: #555555; 
     margin-top: 0.2rem; 
 }
-.cluster-card {
-    background-color: #FFFFFF;
-    padding: 1rem 1.2rem;
-    margin-bottom: 1rem;
-    border-left: 4px solid #F3C04D;
-    border-radius: 4px;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.06);
-}
 </style>
 """, unsafe_allow_html=True)
 
@@ -52,8 +44,6 @@ div[role="button"] {
 # -----------------------------
 st.sidebar.header("Dashboard Controls")
 translate_toggle = st.sidebar.checkbox("Enable translation (API)", False)
-auto_refresh = st.sidebar.checkbox("Auto refresh", False)
-refresh_interval = st.sidebar.slider("Refresh interval (sec)", 30, 300, 60)
 min_cluster_size = st.sidebar.slider("Minimum cluster size", 1, 5, 1)
 articles_per_outlet = st.sidebar.slider("Articles per outlet", 1, 5, 3)
 
@@ -66,7 +56,7 @@ outlets = [
     {"name": "BBC News", "rss": "http://feeds.bbci.co.uk/news/rss.xml", "bias":"center", "reliability":"high"},
     {"name": "CNN", "rss": "http://rss.cnn.com/rss/edition.rss", "bias":"left", "reliability":"high"},
     {"name": "Al Jazeera", "rss": "https://www.aljazeera.com/xml/rss/all.xml", "bias":"center-left", "reliability":"high"},
-    # Add more outlets as needed...
+    # Add more outlets...
 ]
 
 # -----------------------------
@@ -79,20 +69,16 @@ selected_outlets = st.sidebar.multiselect(
 )
 
 # -----------------------------
-# App header
+# App header & search
 # -----------------------------
 st.title("🌍 Global News Intelligence Dashboard")
 st.caption(f"Last updated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
-# -----------------------------
-# Search bar
-# -----------------------------
 search_query = st.text_input("🔍 Search all articles by topic or keyword:")
 
 # -----------------------------
-# Cached RSS fetch
+# Fetch RSS safely
 # -----------------------------
-@st.cache_data(ttl=300)
 def fetch_rss(url):
     try:
         api_url = f"https://api.rss2json.com/v1/api.json?rss_url={url}"
@@ -102,24 +88,26 @@ def fetch_rss(url):
         return []
 
 # -----------------------------
-# Fetch articles (only selected outlets)
+# Load articles on button click
 # -----------------------------
 articles = []
+
 if selected_outlets:
-    with st.spinner("Fetching articles from selected outlets..."):
-        for outlet in outlets:
-            if outlet["name"] not in selected_outlets:
-                continue
-            items = fetch_rss(outlet["rss"])
-            for entry in items[:articles_per_outlet]:
-                articles.append({
-                    "title": entry.get("title",""),
-                    "summary": entry.get("description",""),
-                    "link": entry.get("link","#"),
-                    "source": outlet["name"],
-                    "bias": outlet.get("bias","N/A"),
-                    "reliability": outlet.get("reliability","N/A")
-                })
+    if st.sidebar.button("Load Articles"):
+        with st.spinner("Fetching articles..."):
+            for outlet in outlets:
+                if outlet["name"] not in selected_outlets:
+                    continue
+                items = fetch_rss(outlet["rss"])
+                for entry in items[:articles_per_outlet]:
+                    articles.append({
+                        "title": entry.get("title",""),
+                        "summary": entry.get("description",""),
+                        "link": entry.get("link","#"),
+                        "source": outlet["name"],
+                        "bias": outlet.get("bias","N/A"),
+                        "reliability": outlet.get("reliability","N/A")
+                    })
 
 # -----------------------------
 # Filter by search query
@@ -129,7 +117,7 @@ if search_query:
         a for a in articles
         if search_query.lower() in a["title"].lower() or search_query.lower() in a["summary"].lower()
     ]
-    if not filtered_articles:
+    if not filtered_articles and articles:
         st.warning(f"No articles found for '{search_query}'")
         st.stop()
 else:
@@ -144,9 +132,8 @@ def translate(text):
     return text
 
 # -----------------------------
-# Cached clustering
+# Clustering
 # -----------------------------
-@st.cache_data(ttl=300)
 def cluster_articles(texts):
     vectorizer = TfidfVectorizer(stop_words='english')
     tfidf_matrix = vectorizer.fit_transform(texts)
@@ -167,7 +154,10 @@ for label, article in zip(labels, filtered_articles):
 # Display clusters
 # -----------------------------
 if not clusters:
-    st.info("No clusters to display. Try selecting different outlets or keywords.")
+    if selected_outlets:
+        st.info("No clusters to display. Try selecting different outlets or keywords.")
+    else:
+        st.info("Select outlets and click 'Load Articles' to fetch news.")
 else:
     for cluster_id, cluster_articles in clusters.items():
         if cluster_id == -1 or len(cluster_articles) < min_cluster_size:
