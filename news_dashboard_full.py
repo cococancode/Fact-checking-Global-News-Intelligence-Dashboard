@@ -4,6 +4,9 @@ from datetime import datetime
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.cluster import DBSCAN
 
+# -----------------------------
+# Streamlit config
+# -----------------------------
 st.set_page_config(page_title="Global News Intelligence Dashboard", layout="wide")
 
 # -----------------------------
@@ -56,7 +59,7 @@ outlets = [
     {"name": "BBC News", "rss": "http://feeds.bbci.co.uk/news/rss.xml", "bias":"center", "reliability":"high"},
     {"name": "CNN", "rss": "http://rss.cnn.com/rss/edition.rss", "bias":"left", "reliability":"high"},
     {"name": "Al Jazeera", "rss": "https://www.aljazeera.com/xml/rss/all.xml", "bias":"center-left", "reliability":"high"},
-    # Add more outlets...
+    # Add more outlets here
 ]
 
 # -----------------------------
@@ -69,7 +72,7 @@ selected_outlets = st.sidebar.multiselect(
 )
 
 # -----------------------------
-# App header & search
+# App header & search bar
 # -----------------------------
 st.title("🌍 Global News Intelligence Dashboard")
 st.caption(f"Last updated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
@@ -77,7 +80,7 @@ st.caption(f"Last updated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 search_query = st.text_input("🔍 Search all articles by topic or keyword:")
 
 # -----------------------------
-# Fetch RSS safely
+# RSS fetch function (safe)
 # -----------------------------
 def fetch_rss(url):
     try:
