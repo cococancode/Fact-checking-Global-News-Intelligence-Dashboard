@@ -3,7 +3,6 @@ import feedparser
 from datetime import datetime
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.cluster import DBSCAN
-import numpy as np
 import time
 
 st.set_page_config(page_title="Global News Intelligence Dashboard", layout="wide")
@@ -17,6 +16,15 @@ if "last_refresh" not in st.session_state:
     st.session_state.last_refresh = time.time()
 
 # -----------------------------
+# Sidebar controls
+# -----------------------------
+st.sidebar.header("Controls")
+auto_refresh = st.sidebar.checkbox("Auto refresh", False)
+refresh_interval = st.sidebar.slider("Refresh interval (sec)", 30, 300, 60)
+min_cluster_size = st.sidebar.slider("Minimum cluster size", 1, 5, 1)
+translate_toggle = st.sidebar.checkbox("Enable translation (API)", False)
+
+# -----------------------------
 # Manual refresh
 # -----------------------------
 if st.sidebar.button("Manual refresh"):
@@ -24,14 +32,14 @@ if st.sidebar.button("Manual refresh"):
     st.session_state.last_refresh = time.time()
 
 # -----------------------------
-# Auto-refresh interval
+# Auto-refresh logic
 # -----------------------------
-refresh_interval = st.sidebar.slider("Refresh interval (sec)", 30, 300, 60)
-auto_refresh = st.sidebar.checkbox("Auto refresh", False)
 if auto_refresh:
     if time.time() - st.session_state.last_refresh > refresh_interval:
         st.session_state.refresh_trigger += 1
         st.session_state.last_refresh = time.time()
+        st.experimental_set_query_params(refresh=st.session_state.refresh_trigger)
+        st.experimental_rerun()
 
 # -----------------------------
 # Define all news outlets
@@ -66,17 +74,14 @@ outlets = [
 ]
 
 # -----------------------------
-# Sidebar controls
+# Outlet selection
 # -----------------------------
-st.sidebar.header("Controls")
+st.sidebar.header("Select news outlets")
 selected_outlets = st.sidebar.multiselect(
-    "Select news outlets",
+    "News outlets",
     [o["name"] for o in outlets],
     default=[o["name"] for o in outlets]
 )
-
-translate_toggle = st.sidebar.checkbox("Enable translation (API)", False)
-min_cluster_size = st.sidebar.slider("Minimum cluster size", 1, 5, 1)
 
 # -----------------------------
 # App header
@@ -90,22 +95,26 @@ st.caption(f"Last updated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 search_query = st.text_input("🔍 Search all articles by topic or keyword:")
 
 # -----------------------------
-# Fetch articles
+# Fetch articles safely
 # -----------------------------
 articles = []
-for outlet in outlets:
-    if outlet["name"] not in selected_outlets:
-        continue
-    feed = feedparser.parse(outlet["rss"])
-    for entry in feed.entries[:3]:
-        articles.append({
-            "title": entry.title,
-            "summary": entry.get("summary", ""),
-            "link": entry.link,
-            "source": outlet["name"],
-            "bias": outlet.get("bias", "N/A"),
-            "reliability": outlet.get("reliability", "N/A")
-        })
+with st.spinner("Fetching latest articles..."):
+    for outlet in outlets:
+        if outlet["name"] not in selected_outlets:
+            continue
+        try:
+            feed = feedparser.parse(outlet["rss"])
+            for entry in feed.entries[:3]:
+                articles.append({
+                    "title": entry.title,
+                    "summary": entry.get("summary", ""),
+                    "link": entry.link,
+                    "source": outlet["name"],
+                    "bias": outlet.get("bias", "N/A"),
+                    "reliability": outlet.get("reliability", "N/A")
+                })
+        except Exception as e:
+            st.warning(f"Failed to fetch feed from {outlet['name']}: {e}")
 
 if not articles:
     st.warning("No articles found for selected outlets.")
@@ -130,7 +139,7 @@ else:
 # -----------------------------
 def translate(text):
     if translate_toggle:
-        return f"[Translated] {text}"  # placeholder for API call
+        return f"[Translated] {text}"
     return text
 
 # -----------------------------
