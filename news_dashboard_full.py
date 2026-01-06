@@ -30,6 +30,21 @@ language = st.sidebar.selectbox(
 )
 
 auto_refresh = st.sidebar.checkbox("Auto refresh", True)
+refresh_interval = st.sidebar.slider(
+    "Refresh interval (seconds)",
+    min_value=30,
+    max_value=300,
+    value=60
+)
+
+# -----------------------------
+# Auto refresh (SAFE)
+# -----------------------------
+if auto_refresh:
+    st.autorefresh(
+        interval=refresh_interval * 1000,
+        key="news_refresh"
+    )
 
 # -----------------------------
 # App header
@@ -42,13 +57,14 @@ st.caption(f"Last updated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 # -----------------------------
 for outlet in outlets:
     feed = feedparser.parse(outlet["rss"])
+
     st.subheader(outlet["name"])
 
     for entry in feed.entries[:3]:
         st.markdown(f"### [{entry.title}]({entry.link})")
         st.caption(
-            f"Bias: {outlet['bias']} | "
-            f"Reliability: {outlet['reliability']}"
+            f"Bias: {outlet.get('bias', 'N/A')} | "
+            f"Reliability: {outlet.get('reliability', 'N/A')}"
         )
 
         with st.expander("Summary · Fact check · Opposing views"):
@@ -57,9 +73,3 @@ for outlet in outlets:
             st.write("Opposing views: cross-source comparison pending")
 
     st.divider()
-
-# -----------------------------
-# Auto refresh
-# -----------------------------
-if auto_refresh:
-    st.experimental_rerun()
