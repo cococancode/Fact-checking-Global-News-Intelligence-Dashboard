@@ -1,11 +1,10 @@
 import streamlit as st
 import json
 import feedparser
-from deep_translator import GoogleTranslator
 from datetime import datetime
 
 # -----------------------------
-# Load news registry
+# Load registry
 # -----------------------------
 with open("news_registry.json", "r", encoding="utf-8") as f:
     outlets = json.load(f)
@@ -20,32 +19,17 @@ st.set_page_config(
 )
 
 # -----------------------------
-# Sidebar settings
+# Sidebar
 # -----------------------------
 st.sidebar.header("Settings")
 
 language = st.sidebar.selectbox(
     "Preferred language",
-    ["EN", "DE", "FR", "ES", "ZH"],
+    ["Original", "EN", "DE", "FR", "ES", "ZH"],
     index=0
 )
 
-auto_refresh = st.sidebar.checkbox(
-    "Auto refresh",
-    value=True
-)
-
-# -----------------------------
-# Translation helper
-# -----------------------------
-def translate_text(text: str) -> str:
-    try:
-        return GoogleTranslator(
-            source="auto",
-            target=language.lower()
-        ).translate(text)
-    except Exception:
-        return text
+auto_refresh = st.sidebar.checkbox("Auto refresh", True)
 
 # -----------------------------
 # App header
@@ -58,27 +42,19 @@ st.caption(f"Last updated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 # -----------------------------
 for outlet in outlets:
     feed = feedparser.parse(outlet["rss"])
-
     st.subheader(outlet["name"])
 
     for entry in feed.entries[:3]:
-        headline = translate_text(entry.title)
-
-        st.markdown(f"### [{headline}]({entry.link})")
+        st.markdown(f"### [{entry.title}]({entry.link})")
         st.caption(
             f"Bias: {outlet['bias']} | "
             f"Reliability: {outlet['reliability']}"
         )
 
         with st.expander("Summary · Fact check · Opposing views"):
-            summary = entry.get("summary", "No summary available.")
-            st.write(translate_text(summary))
-
-            st.markdown("**Fact check**")
-            st.write("Automated verification pending.")
-
-            st.markdown("**Opposing viewpoints**")
-            st.write("Cross-source comparison will appear here.")
+            st.write(entry.get("summary", "No summary available"))
+            st.write("Fact check: automated analysis pending")
+            st.write("Opposing views: cross-source comparison pending")
 
     st.divider()
 
