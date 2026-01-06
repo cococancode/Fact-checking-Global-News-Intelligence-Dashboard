@@ -29,8 +29,12 @@ auto_refresh = st.sidebar.checkbox("Auto refresh", False)
 refresh_interval = st.sidebar.slider("Refresh interval (sec)", 30, 300, 60)
 min_cluster_size = st.sidebar.slider("Minimum cluster size", 1, 5, 1)
 
-if st.sidebar.button("Manual refresh"):
+# Safe manual refresh callback
+def refresh_app():
     st.experimental_rerun()
+
+if st.sidebar.button("Manual refresh"):
+    refresh_app()
 
 # -----------------------------
 # App header
