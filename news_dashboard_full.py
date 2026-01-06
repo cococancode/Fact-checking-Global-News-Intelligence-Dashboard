@@ -1,6 +1,5 @@
 import streamlit as st
 import feedparser
-import json
 from datetime import datetime
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.cluster import DBSCAN
@@ -18,10 +17,43 @@ if st.sidebar.button("Manual refresh"):
     st.session_state.refresh_trigger += 1  # Increment triggers a soft refresh
 
 # -----------------------------
-# Load news registry
+# Define all news outlets
 # -----------------------------
-with open("news_registry.json", "r", encoding="utf-8") as f:
-    outlets = json.load(f)
+outlets = [
+    # Global agencies
+    {"name": "Associated Press (AP)", "rss": "https://apnews.com/rss", "bias": "center", "reliability": "high"},
+    {"name": "Reuters", "rss": "http://feeds.reuters.com/reuters/topNews", "bias": "center", "reliability": "high"},
+    {"name": "AFP", "rss": "https://www.afp.com/en/feeds", "bias": "center", "reliability": "high"},
+
+    # Top broadcasters
+    {"name": "BBC News", "rss": "http://feeds.bbci.co.uk/news/rss.xml", "bias": "center", "reliability": "high"},
+    {"name": "CNN", "rss": "http://rss.cnn.com/rss/edition.rss", "bias": "left", "reliability": "high"},
+    {"name": "Al Jazeera", "rss": "https://www.aljazeera.com/xml/rss/all.xml", "bias": "center-left", "reliability": "high"},
+    {"name": "Sky News", "rss": "https://feeds.skynews.com/feeds/rss/home.xml", "bias": "center", "reliability": "high"},
+    {"name": "CNA (Channel NewsAsia)", "rss": "https://www.channelnewsasia.com/rssfeeds/8395986", "bias": "center", "reliability": "high"},
+    {"name": "NHK World-Japan", "rss": "https://www3.nhk.or.jp/nhkworld/en/news/rss.xml", "bias": "center", "reliability": "high"},
+    {"name": "Yahoo! News", "rss": "https://www.yahoo.com/news/rss", "bias": "center", "reliability": "medium"},
+
+    # Influential newspapers
+    {"name": "The New York Times", "rss": "https://rss.nytimes.com/services/xml/rss/nyt/HomePage.xml", "bias": "left", "reliability": "high"},
+    {"name": "The Wall Street Journal", "rss": "https://www.wsj.com/xml/rss/3_7014.xml", "bias": "right", "reliability": "high"},
+    {"name": "The Washington Post", "rss": "http://feeds.washingtonpost.com/rss/politics", "bias": "left", "reliability": "high"},
+    {"name": "The Guardian", "rss": "https://www.theguardian.com/world/rss", "bias": "left", "reliability": "high"},
+    {"name": "The Times", "rss": "https://www.thetimes.co.uk/rss", "bias": "center-right", "reliability": "high"},
+    {"name": "Le Monde", "rss": "https://www.lemonde.fr/rss/une.xml", "bias": "center-left", "reliability": "high"},
+    {"name": "Asahi Shimbun", "rss": "https://www.asahi.com/rss/asahi/newsheadlines.rdf", "bias": "center", "reliability": "high"},
+    {"name": "Bloomberg News", "rss": "https://www.bloomberg.com/feed/podcast/etf-report.xml", "bias": "center", "reliability": "high"},
+    {"name": "Forbes", "rss": "https://www.forbes.com/business/feed2/", "bias": "center-right", "reliability": "high"},
+    {"name": "NPR", "rss": "https://www.npr.org/rss/rss.php?id=1001", "bias": "center-left", "reliability": "high"},
+
+    # Other sources
+    {"name": "Fox News", "rss": "http://feeds.foxnews.com/foxnews/latest", "bias": "right", "reliability": "medium"},
+    {"name": "CNBC", "rss": "https://www.cnbc.com/id/100003114/device/rss/rss.html", "bias": "center-right", "reliability": "high"},
+    {"name": "ABC News", "rss": "https://abcnews.go.com/abcnews/topstories", "bias": "center", "reliability": "high"},
+    {"name": "CBS News", "rss": "https://www.cbsnews.com/latest/rss/main", "bias": "center", "reliability": "high"},
+    {"name": "NBC News", "rss": "https://feeds.nbcnews.com/nbcnews/public/news", "bias": "center", "reliability": "high"},
+    {"name": "NDTV 24x7", "rss": "https://feeds.feedburner.com/ndtvnews-latest", "bias": "center", "reliability": "high"},
+]
 
 # -----------------------------
 # Sidebar controls
@@ -30,7 +62,7 @@ st.sidebar.header("Controls")
 selected_outlets = st.sidebar.multiselect(
     "Select news outlets",
     [o["name"] for o in outlets],
-    default=[o["name"] for o in outlets[:5]]
+    default=[o["name"] for o in outlets]  # default = all outlets
 )
 
 translate_toggle = st.sidebar.checkbox("Enable translation (API)", False)
@@ -79,15 +111,12 @@ def translate(text):
 # -----------------------------
 article_texts = [a["title"] + " " + a["summary"] for a in articles]
 
-# TF-IDF vectors
 vectorizer = TfidfVectorizer(stop_words='english')
 tfidf_matrix = vectorizer.fit_transform(article_texts)
 
-# DBSCAN clustering
 db = DBSCAN(metric='cosine', eps=0.3, min_samples=2)
 labels = db.fit_predict(tfidf_matrix)
 
-# Group articles by cluster
 clusters = {}
 for label, article in zip(labels, articles):
     clusters.setdefault(label, []).append(article)
