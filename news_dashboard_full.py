@@ -1,128 +1,128 @@
 import streamlit as st
 import requests
-import xml.etree.ElementTree as ET
+import pandas as pd
 from datetime import datetime
 
-# -----------------------------
-# PAGE CONFIG
-# -----------------------------
+# --------------------------------
+# Page config
+# --------------------------------
 st.set_page_config(
     page_title="Global News Intelligence Dashboard",
     layout="wide"
 )
 
-# -----------------------------
-# DARK MODE (READABLE)
-# -----------------------------
+# --------------------------------
+# Styling (Black background, white text)
+# --------------------------------
 st.markdown("""
 <style>
-body, .stApp {
-    background-color: #000;
-    color: #fff;
+html, body, [class*="css"] {
+    background-color: #000000 !important;
+    color: #FFFFFF !important;
 }
-a { color: #4da6ff !important; }
+a {
+    color: #4da6ff !important;
+}
 </style>
 """, unsafe_allow_html=True)
 
-# -----------------------------
-# HEADER
-# -----------------------------
-st.title("🌍 Global News Intelligence Dashboard")
-st.caption(f"Updated: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')}")
+# --------------------------------
+# API key (SECURE)
+# --------------------------------
+API_KEY = st.secrets.get("NEWS_API_KEY")
+if not API_KEY:
+    st.error("NEWS_API_KEY not found in Streamlit secrets.")
+    st.stop()
 
-# -----------------------------
-# RSS NEWS REGISTRY (NO API)
-# -----------------------------
-NEWS_OUTLETS = {
-    "Reuters": "https://www.reuters.com/rssFeed/worldNews",
-    "Associated Press": "https://apnews.com/apf-topnews?utm_source=rss",
-    "BBC News": "https://feeds.bbci.co.uk/news/world/rss.xml",
-    "CNN": "https://rss.cnn.com/rss/edition_world.rss",
-    "The Guardian": "https://www.theguardian.com/world/rss",
-    "Al Jazeera": "https://www.aljazeera.com/xml/rss/all.xml",
-    "Bloomberg": "https://www.bloomberg.com/feed/podcast/etf-report.xml",
-    "CNBC": "https://www.cnbc.com/id/100727362/device/rss/rss.html",
-    "NPR": "https://feeds.npr.org/1004/rss.xml"
+# --------------------------------
+# News outlets registry (JSON)
+# --------------------------------
+OUTLETS = {
+    "BBC News": "bbc-news",
+    "The Guardian": "the-guardian-uk",
+    "Reuters": "reuters",
+    "Al Jazeera": "al-jazeera-english",
+    "CNN": "cnn",
+    "The New York Times": "the-new-york-times",
+    "Bloomberg": "bloomberg",
+    "Financial Times": "financial-times",
+    "The Washington Post": "the-washington-post"
 }
 
-# -----------------------------
-# SIDEBAR
-# -----------------------------
+# --------------------------------
+# UI Header
+# --------------------------------
+st.title("🌍 Global News Intelligence Dashboard")
+st.caption(f"Updated: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')} UTC")
+
+# --------------------------------
+# Sidebar Controls
+# --------------------------------
 st.sidebar.header("Controls")
 
 selected_outlets = st.sidebar.multiselect(
     "Select news outlets",
-    list(NEWS_OUTLETS.keys())
+    list(OUTLETS.keys()),
+    default=["BBC News", "The Guardian", "Reuters"]
 )
 
-search_term = st.sidebar.text_input(
-    "Search topic",
-    placeholder="e.g. Ukraine, inflation, AI"
+search_query = st.sidebar.text_input(
+    "Search topic (optional)",
+    placeholder="e.g. China, AI, Climate"
 )
 
-load_news = st.sidebar.button("Load articles")
+load_button = st.sidebar.button("Load Articles")
 
-# -----------------------------
-# RSS PARSER (SAFE)
-# -----------------------------
-def fetch_rss(url):
-    articles = []
-    try:
-        response = requests.get(url, timeout=10)
-        root = ET.fromstring(response.content)
+# --------------------------------
+# Fetch function (JSON only)
+# --------------------------------
+def fetch_articles(sources, query):
+    url = "https://newsapi.org/v2/everything"
 
-        for item in root.iter("item"):
-            title = item.findtext("title", "")
-            description = item.findtext("description", "")
-            link = item.findtext("link", "")
+    params = {
+        "apiKey": API_KEY,
+        "sources": ",".join(sources),
+        "q": query if query else None,
+        "language": "en",
+        "pageSize": 50,
+        "sortBy": "publishedAt",
+    }
 
-            articles.append({
-                "title": title,
-                "summary": description,
-                "link": link
-            })
-    except Exception as e:
-        st.warning(f"Failed to load feed: {url}")
-    return articles
+    response = requests.get(url, params=params, timeout=10)
+    response.raise_for_status()
+    return response.json()
 
-# -----------------------------
-# MAIN LOGIC
-# -----------------------------
-if load_news:
+# --------------------------------
+# Load articles
+# --------------------------------
+if load_button:
+    if not selected_outlets:
+        st.warning("Please select at least one outlet.")
+        st.stop()
 
-    all_articles = []
+    with st.spinner("Fetching articles..."):
+        try:
+            source_ids = [OUTLETS[o] for o in selected_outlets]
+            data = fetch_articles(source_ids, search_query)
 
-    for outlet in selected_outlets:
-        feed_url = NEWS_OUTLETS[outlet]
-        feed_articles = fetch_rss(feed_url)
+        except Exception as e:
+            st.error(f"Failed to fetch articles: {e}")
+            st.stop()
 
-        for article in feed_articles:
-            article["source"] = outlet
-            all_articles.append(article)
+    articles = data.get("articles", [])
 
-    # SEARCH FILTER
-    if search_term:
-        all_articles = [
-            a for a in all_articles
-            if search_term.lower() in a["title"].lower()
-            or search_term.lower() in a["summary"].lower()
-        ]
+    if not articles:
+        st.info("No articles found for your selection.")
+        st.stop()
 
-    if not all_articles:
-        st.warning("No articles found.")
-    else:
-        st.subheader(f"📰 {len(all_articles)} Articles")
+    st.subheader(f"📰 {len(articles)} Articles")
 
-        for article in all_articles:
-            st.markdown(f"### [{article['title']}]({article['link']})")
-            st.caption(article["source"])
+    for article in articles:
+        st.markdown(f"### [{article['title']}]({article['url']})")
+        st.caption(f"{article['source']['name']} — {article.get('publishedAt','')}")
+        if article.get("description"):
+            st.write(article["description"])
+        st.markdown("---")
 
-            if article["summary"]:
-                st.write(article["summary"])
-
-            st.divider()
-
-# -----------------------------
-# FOOTER
-# -----------------------------
-st.caption("Key-free · RSS-based · Streamlit Cloud compatible")
+else:
+    st.info("Select outlets and click **Load Articles**.")
