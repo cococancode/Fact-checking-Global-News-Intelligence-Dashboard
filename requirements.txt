@@ -1,2 +1,2 @@
-streamlit==1.29.0
-feedparser==6.0.10
+streamlit
+requests
