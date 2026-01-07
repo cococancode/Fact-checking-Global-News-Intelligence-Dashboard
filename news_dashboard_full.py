@@ -1,128 +1,140 @@
 import streamlit as st
-import feedparser
+import requests
 from datetime import datetime
 
-# -------------------------------------------------
-# PAGE CONFIG
-# -------------------------------------------------
-st.set_page_config(page_title="Global News Intelligence Dashboard", layout="wide")
+# -----------------------------
+# CONFIG
+# -----------------------------
+st.set_page_config(
+    page_title="Global News Intelligence Dashboard",
+    layout="wide"
+)
 
-# -------------------------------------------------
-# SESSION STATE
-# -------------------------------------------------
-if "articles" not in st.session_state:
-    st.session_state.articles = []
+NEWS_API_KEY = st.secrets.get("NEWS_API_KEY", "")  # set in Streamlit secrets
 
-# -------------------------------------------------
-# DARK MODE
-# -------------------------------------------------
-st.markdown("""
-<style>
-body, .stApp { background:black; color:white; }
-a { color:#4da3ff; }
-[data-testid="stSidebar"] { background:#111; }
-.stButton button { background:#4da3ff; color:black; font-weight:bold; }
-</style>
-""", unsafe_allow_html=True)
+# -----------------------------
+# GLOBAL DARK THEME
+# -----------------------------
+st.markdown(
+    """
+    <style>
+    body, .stApp {
+        background-color: #000000;
+        color: #FFFFFF;
+    }
+    a {
+        color: #00bfff !important;
+        text-decoration: none;
+    }
+    a:hover {
+        text-decoration: underline;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
 
-# -------------------------------------------------
-# VERIFIED HTTPS RSS FEEDS (CRITICAL)
-# -------------------------------------------------
-OUTLETS = [
-    {
-        "name": "Reuters",
-        "rss": "https://feeds.reuters.com/reuters/topNews",
-        "bias": "center",
-    },
-    {
-        "name": "AP News",
-        "rss": "https://apnews.com/apf-topnews.rss",
-        "bias": "center",
-    },
-    {
-        "name": "BBC News",
-        "rss": "https://feeds.bbci.co.uk/news/rss.xml",
-        "bias": "center",
-    },
-    {
-        "name": "Al Jazeera",
-        "rss": "https://www.aljazeera.com/xml/rss/all.xml",
-        "bias": "center-left",
-    },
-]
+# -----------------------------
+# HEADER
+# -----------------------------
+st.title("🌍 Global News Intelligence Dashboard")
+st.caption(f"Updated: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')}")
 
-# -------------------------------------------------
-# SIDEBAR
-# -------------------------------------------------
-st.sidebar.header("Controls")
+# -----------------------------
+# NEWS OUTLETS (JSON REGISTRY)
+# -----------------------------
+OUTLETS = {
+    "Associated Press": "associated-press",
+    "Reuters": "reuters",
+    "BBC News": "bbc-news",
+    "CNN": "cnn",
+    "Al Jazeera": "al-jazeera-english",
+    "The New York Times": "the-new-york-times",
+    "The Guardian": "the-guardian-uk",
+    "Bloomberg": "bloomberg",
+    "CNBC": "cnbc",
+    "Fox News": "fox-news",
+    "NPR": "npr"
+}
+
+# -----------------------------
+# SIDEBAR CONTROLS
+# -----------------------------
+st.sidebar.header("Search Controls")
 
 selected_outlets = st.sidebar.multiselect(
-    "Select outlets",
-    [o["name"] for o in OUTLETS],
+    "Select news outlets",
+    list(OUTLETS.keys())
 )
 
-articles_per_outlet = st.sidebar.slider(
-    "Articles per outlet", 1, 10, 5
+search_query = st.sidebar.text_input(
+    "Search topic",
+    placeholder="e.g. Ukraine, AI, Inflation"
 )
 
-# -------------------------------------------------
-# HEADER
-# -------------------------------------------------
-st.title("🌍 Global News Intelligence Dashboard")
-st.caption(datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC"))
+load_articles = st.sidebar.button("Load articles")
 
-# -------------------------------------------------
-# FETCH FUNCTION (WITH DEBUG)
-# -------------------------------------------------
-def fetch_rss(url):
-    feed = feedparser.parse(url)
-    return feed.entries, feed.bozo, feed.bozo_exception if feed.bozo else None
+# -----------------------------
+# FETCH FUNCTION (JSON API)
+# -----------------------------
+def fetch_articles(outlet_ids, query):
+    if not NEWS_API_KEY:
+        st.error("❌ NEWS_API_KEY not set in Streamlit secrets")
+        return []
 
-# -------------------------------------------------
-# LOAD ARTICLES BUTTON
-# -------------------------------------------------
-if st.sidebar.button("Load Articles"):
-    st.session_state.articles = []
+    params = {
+        "apiKey": NEWS_API_KEY,
+        "language": "en",
+        "pageSize": 50,
+    }
 
-    for outlet in OUTLETS:
-        if outlet["name"] not in selected_outlets:
-            continue
+    if query:
+        params["q"] = query
 
-        entries, bozo, error = fetch_rss(outlet["rss"])
+    if outlet_ids:
+        params["sources"] = ",".join(outlet_ids)
 
-        # DEBUG OUTPUT
-        st.sidebar.write(f"📡 {outlet['name']}: {len(entries)} items")
+    response = requests.get(
+        "https://newsapi.org/v2/everything",
+        params=params,
+        timeout=10
+    )
 
-        if bozo:
-            st.sidebar.error(f"{outlet['name']} feed error")
-            st.sidebar.write(error)
-            continue
+    if response.status_code != 200:
+        st.error(f"API Error: {response.status_code}")
+        return []
 
-        for e in entries[:articles_per_outlet]:
-            st.session_state.articles.append({
-                "title": e.get("title", "No title"),
-                "summary": e.get("summary", ""),
-                "link": e.get("link", "#"),
-                "source": outlet["name"],
-                "bias": outlet["bias"],
-            })
+    return response.json().get("articles", [])
 
-# -------------------------------------------------
-# EMPTY STATE
-# -------------------------------------------------
-if not st.session_state.articles:
-    st.warning("⬅️ Select outlets and click **Load Articles**")
-    st.stop()
+# -----------------------------
+# MAIN ACTION
+# -----------------------------
+if load_articles:
+    outlet_ids = [OUTLETS[o] for o in selected_outlets]
 
-# -------------------------------------------------
-# DISPLAY ARTICLES
-# -------------------------------------------------
-st.subheader(f"📰 {len(st.session_state.articles)} articles loaded")
+    articles = fetch_articles(outlet_ids, search_query)
 
-for a in st.session_state.articles:
-    st.markdown(f"### [{a['title']}]({a['link']})")
-    st.caption(f"{a['source']} | Bias: {a['bias']}")
-    if a["summary"]:
-        with st.expander("Summary"):
-            st.write(a["summary"])
-    st.divider()
+    if not articles:
+        st.warning("No articles found.")
+    else:
+        st.subheader(f"📰 {len(articles)} Articles Found")
+
+        for a in articles:
+            st.markdown(f"### [{a['title']}]({a['url']})")
+            st.caption(
+                f"{a.get('source', {}).get('name', 'Unknown')} — "
+                f"{a.get('publishedAt', '')[:10]}"
+            )
+
+            if a.get("description"):
+                st.write(a["description"])
+
+            with st.expander("Full context"):
+                st.write(a.get("content", "No additional content available."))
+
+            st.divider()
+
+# -----------------------------
+# FOOTER
+# -----------------------------
+st.caption("Powered by NewsAPI.org · JSON-based · Streamlit Cloud Safe")
